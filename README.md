@@ -1,4 +1,4 @@
-# -inser_name-
+# TetrisRL
 
 ## Ideas
 1) Arcade game (Pac-Man, Tetris, Donkey Kong) optimal sovler (Rubick's cube, hex, mancala)
