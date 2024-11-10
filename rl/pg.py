@@ -36,11 +36,6 @@ class PolicyGradient:
         self.reward_to_go = reward_to_go
         self.seed = seed
 
-        ## TODO ###
-        self.env.seed(self.seed)
-        self.env.action_space.seed(self.seed)
-        self.env.observation_space.seed(self.seed)
-        ###    ###
         torch.manual_seed(self.seed)
         np.random.seed(self.seed)
 
@@ -91,7 +86,6 @@ class PolicyGradient:
 
     ## TODO ##
     def run_episode(self):
-        self.env.seed(seed)
         self.env.action_space.seed(seed)
         self.env.observation_space.seed(seed)
         state = self.env.reset()
