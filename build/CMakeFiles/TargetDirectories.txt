@@ -1,3 +1,0 @@
-/home/cpf44/projectsU/TetrisRL/build/CMakeFiles/TetrisRL.dir
-/home/cpf44/projectsU/TetrisRL/build/CMakeFiles/edit_cache.dir
-/home/cpf44/projectsU/TetrisRL/build/CMakeFiles/rebuild_cache.dir
