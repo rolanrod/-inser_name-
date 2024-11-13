@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import random
-from env import Environment as Env
+from env import Environment
 
 seed = 695
 
@@ -29,7 +29,7 @@ class PolicyNet(nn.Module):
     
 
 class PolicyGradient:
-    def __init__(self, env: Env, policy_net, seed, reward_to_go: bool = True):
+    def __init__(self, env: Environment, policy_net: PolicyNet, seed: int, reward_to_go: bool = True):
         self.env = env
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.policy_net = policy_net.to(self.device)
@@ -45,9 +45,9 @@ class PolicyGradient:
         return torch.distributions.Categorical(self.policy_net.forward(state)).sample().item()
 
     def compute_loss(self, episode, gamma):
-        states = torch.tensor([s for (s, a, r) in episode]).to(self.device)
-        action = torch.tensor([a for (s, a, r) in episode]).to(self.device)
-        reward = torch.tensor([r for (s, a, r) in episode]).to(self.device)
+        states = torch.tensor([s for (s, _, _) in episode]).to(self.device)
+        action = torch.tensor([a for (_, a, _) in episode]).to(self.device)
+        reward = torch.tensor([r for (_, _, r) in episode]).to(self.device)
 
         R = []
 
@@ -56,7 +56,7 @@ class PolicyGradient:
             for i in range(len(reward)):
               cum_reward += (gamma ** i) * reward[i]
 
-            for r in reward: R.append(cum_reward)
+            for _ in reward: R.append(cum_reward)
 
         else:
             cum_reward = 0.0
@@ -83,17 +83,14 @@ class PolicyGradient:
         loss.backward()
         optimizer.step()
 
-
-    ## TODO ##
     def run_episode(self):
-        self.env.action_space.seed(seed)
-        self.env.observation_space.seed(seed)
         state = self.env.reset()
         episode = []
         done = False
+        timestep = 0
         while not done:
             action = self.select_action(state)
-            next_state, reward, done, info = self.env.step(action)
+            next_state, reward, done = self.env.step(action, timestep)
             episode.append((state, action, reward))
             state = next_state
         return episode
@@ -125,3 +122,20 @@ class PolicyGradient:
         average_reward = reward / num_episodes
         return average_reward
     
+
+def main():
+    env = Environment()
+    reseed(seed)
+    # env.seed(seed)
+    # env.action_space.seed(seed)
+    # env.observation_space.seed(seed)
+    env.reset()
+
+    ## TODO: reduce size of state space!!!
+    nn = PolicyNet(20 * 10 * (2 ** 200), 5, 128)
+    reinforce = PolicyGradient(env, nn, seed, reward_to_go=True)
+    reinforce.train(num_iterations=200, batch_size=10, gamma=0.99, lr=0.001)
+    print(reinforce.evaluate(100))
+
+if __name__ == '__main__':
+   main()
