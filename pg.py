@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 import random
 from env import Environment
+import pygame
 
 seed = 695
 
@@ -22,6 +23,7 @@ class PolicyNet(nn.Module):
         self.output = nn.Linear(hidden_dim, action_dim)
 
     def forward(self, state: torch.Tensor):
+        state = state.float()
         X_0 = torch.relu(self.input(state))
         X_1 = self.output(X_0)
 
@@ -84,13 +86,16 @@ class PolicyGradient:
         optimizer.step()
 
     def run_episode(self):
-        state = self.env.reset()
-        episode = []
+        states, actions, rewards, episode = [], [], [], []
+        self.env.reset()
+        features = self.env.features_to_vector(self.env.extract_features())
+        state = np.array(features, dtype=np.float32)
+
         done = False
         timestep = 0
         while not done:
             action = self.select_action(state)
-            next_state, reward, done = self.env.step(action, timestep)
+            next_state, reward, done, timestep = self.env.step(action, timestep)
             episode.append((state, action, reward))
             state = next_state
         return episode
@@ -126,13 +131,12 @@ class PolicyGradient:
 def main():
     env = Environment()
     reseed(seed)
-    # env.seed(seed)
-    # env.action_space.seed(seed)
-    # env.observation_space.seed(seed)
     env.reset()
 
-    ## TODO: reduce size of state space!!!
-    nn = PolicyNet(20 * 10 * (2 ** 200), 5, 128)
+    input_dim = len(env.features_to_vector(env.extract_features()))
+    action_dim = 1
+
+    nn = PolicyNet(input_dim, action_dim, hidden_dim=128)
     reinforce = PolicyGradient(env, nn, seed, reward_to_go=True)
     reinforce.train(num_iterations=200, batch_size=10, gamma=0.99, lr=0.001)
     print(reinforce.evaluate(100))
