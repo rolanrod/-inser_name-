@@ -28,7 +28,7 @@ class Environment(Game):
         bumpiness = sum(abs(heights[i] - heights[i + 1]) for i in range(len(heights) - 1))
         holes = sum((num_rows - np.argmax(grid_arr[:, col] > 0, axis=0)) - np.sum(grid_arr[:, col]) for col in range(num_cols))
     
-        tetromino = self.current_block
+        tetromino = self.current_block.id - 1
 
         return {
             "heights": heights,
@@ -59,20 +59,23 @@ class Environment(Game):
         ]
     
     def step(self, action, timestep):
-        if self.game_over: return np.array(self.grid), 0, True
+        if self.game_over: 
+            return np.array(self.grid), 0, True, 0
 
         reward_0 = self.score
 
         # Apply transitions and update state
-        if action == 'l':
+        if action == 0:
             self.move_left()
-        if action == 'r':
+        if action == 1:
             self.move_right()
-        if action == 'down':
+        if action == 2:
             self.move_down()
             self.update_score(0, 1)
-        if action == 'rot':
+        if action == 3:
             self.rotate()
+        if action == 4:
+            pass # do noting
         
         self.step_count += 1
 

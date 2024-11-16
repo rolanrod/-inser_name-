@@ -5,6 +5,7 @@ import torch.optim as optim
 import random
 from env import Environment
 import pygame
+from colors import Colors
 
 seed = 695
 
@@ -43,13 +44,12 @@ class PolicyGradient:
 
     def select_action(self, state):
         state = torch.tensor(state).to(self.device)
-
         return torch.distributions.Categorical(self.policy_net.forward(state)).sample().item()
 
     def compute_loss(self, episode, gamma):
-        states = torch.tensor([s for (s, _, _) in episode]).to(self.device)
-        action = torch.tensor([a for (_, a, _) in episode]).to(self.device)
-        reward = torch.tensor([r for (_, _, r) in episode]).to(self.device)
+        states = torch.tensor(np.array([s for (s, _, _) in episode])).to(self.device)
+        action = torch.tensor(np.array([a for (_, a, _) in episode])).to(self.device)
+        reward = torch.tensor(np.array([r for (_, _, r) in episode])).to(self.device)
 
         R = []
 
@@ -86,6 +86,10 @@ class PolicyGradient:
         optimizer.step()
 
     def run_episode(self):
+        render = False
+        if render:
+           pygame.init()
+
         states, actions, rewards, episode = [], [], [], []
         self.env.reset()
         features = self.env.features_to_vector(self.env.extract_features())
@@ -94,6 +98,9 @@ class PolicyGradient:
         done = False
         timestep = 0
         while not done:
+            if render:
+               self.render_game()
+
             action = self.select_action(state)
             next_state, reward, done, timestep = self.env.step(action, timestep)
             episode.append((state, action, reward))
@@ -106,9 +113,12 @@ class PolicyGradient:
         lst = []
 
         for i in range(num_iterations):
+          print(f"EPISODE {i}")
           episodes = []
 
-          for _ in range(batch_size): episodes.append(self.run_episode())
+          for j in range(batch_size): 
+            print(f"EPISODE {j + (i * 10)}")
+            episodes.append(self.run_episode())
           self.update_policy(episodes, optimizer, gamma)
 
           if i % 10 == 0:
@@ -128,17 +138,54 @@ class PolicyGradient:
         return average_reward
     
 
+    def render_game(self):
+        ## Ugly render_game code ##
+        game = self.env
+        title_font = pygame.font.Font(None, 40)
+        score_surface = title_font.render("Score", True, Colors.white)
+        next_surface = title_font.render("Next", True, Colors.white)
+        game_over_surface = title_font.render("GAME OVER", True, Colors.white)
+
+        score_rect = pygame.Rect(320, 55, 170, 60)
+        next_rect = pygame.Rect(320, 215, 170, 180)
+
+        screen = pygame.display.set_mode((500, 620))
+        pygame.display.set_caption("Python Tetris")
+
+        clock = pygame.time.Clock()
+
+        GAME_UPDATE = pygame.USEREVENT
+        pygame.time.set_timer(GAME_UPDATE, 200)
+        score_value_surface = title_font.render(str(game.score), True, Colors.white)
+
+        screen.fill(Colors.dark_blue)
+        screen.blit(score_surface, (365, 20, 50, 50))
+        screen.blit(next_surface, (375, 180, 50, 50))
+
+        if game.game_over == True:
+            screen.blit(game_over_surface, (320, 450, 50, 50))
+
+        pygame.draw.rect(screen, Colors.light_blue, score_rect, 0, 10)
+        screen.blit(score_value_surface, score_value_surface.get_rect(centerx = score_rect.centerx, 
+            centery = score_rect.centery))
+        pygame.draw.rect(screen, Colors.light_blue, next_rect, 0, 10)
+        game.draw(screen)
+
+        pygame.display.update()
+        clock.tick(60)
+    
+    
 def main():
     env = Environment()
     reseed(seed)
     env.reset()
 
     input_dim = len(env.features_to_vector(env.extract_features()))
-    action_dim = 1
+    action_dim = 5 # left, right, down, rotate, do nothing
 
     nn = PolicyNet(input_dim, action_dim, hidden_dim=128)
     reinforce = PolicyGradient(env, nn, seed, reward_to_go=True)
-    reinforce.train(num_iterations=200, batch_size=10, gamma=0.99, lr=0.001)
+    reinforce.train(num_iterations=10, batch_size=10, gamma=0.99, lr=0.001)
     print(reinforce.evaluate(100))
 
 if __name__ == '__main__':
