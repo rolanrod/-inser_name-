@@ -8,6 +8,7 @@ import util
 from colors import Colors
 from env import Environment
 import matplotlib.pyplot as plt
+import time
 
 seed = 695
 
@@ -102,18 +103,21 @@ class PolicyGradient:
             setup_tuple = self.setup_canvas()
     
         self.env.reset()
-        state = np.zeros(10 + 9 + 1 + 1 + 1)
+        state = np.zeros(10 + 9 + 1 + 1 + 1 + 8)
         episode = []
         done = False
         timestep = 0
+        i = 0
         while not done:
+            i += 1
             if render:
                self.render_game(setup_tuple)
             action = self.select_action(state)
             next_state, reward, done = self.env.step(action, timestep)
             episode.append((state, action, reward))
             state = next_state
-            # print(action)
+           
+            # time.sleep(0.1)
 
         if (render):
             pygame.quit()
@@ -125,7 +129,8 @@ class PolicyGradient:
         self.policy_net.train()
         optimizer = optim.Adam(self.policy_net.parameters(), lr=lr)
         lst = []
-
+        best_performance = -float('inf') # Initialize best loss to a very high value
+    
         for i in range(num_iterations):
             episodes = []
 
@@ -135,8 +140,14 @@ class PolicyGradient:
 
             self.update_policy(episodes, optimizer, gamma)
 
+            current_performance = self.evaluate(10)
+            if current_performance > best_performance:
+                best_performance = current_performance
+                torch.save(self.policy_net.state_dict(), util.get_checkpoint_path())
+
             if i % 10 == 0:
-                lst.append(self.evaluate(10))
+                lst.append(current_performance)
+                print(current_performance)
 
         return lst
 
@@ -187,16 +198,21 @@ class PolicyGradient:
 def main():
     env = Environment()
     reseed(seed)
+    random.seed(seed)
     # env.seed(seed)
     # env.action_space.seed(seed)
     # env.observation_space.seed(seed)
     env.reset()
     
     visualize_learner = True
+    train_from_checkpoint = False
 
-    nn = PolicyNet(10 + 9 + 1 + 1 + 1, 4, 128)
+    nn = PolicyNet(10 + 9 + 1 + 1 + 1 + 8, 5, 128)
+    if train_from_checkpoint:
+        nn = util.load_model_checkpoint(util.get_checkpoint_path(), nn)
     reinforce = PolicyGradient(env, nn, seed, reward_to_go=True)
-    result = reinforce.train(num_iterations=50, batch_size=10, gamma=0.99, lr=0.001, render = False)
+ 
+    result = reinforce.train(num_iterations=2000, batch_size=10, gamma=0.99, lr=0.0001, render = False)
     print(reinforce.evaluate(100))
 
 

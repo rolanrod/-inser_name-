@@ -14,6 +14,7 @@ class Environment(Game):
         initial_score = self.score
 
         old_state = self.extract_compact_state()
+        # print(old_state)
 
         # Apply transitions and update state
         if action == 0:
@@ -26,6 +27,8 @@ class Environment(Game):
             self.update_score(0, rewards.move_down)
         if action == 3:
             self.rotate()
+        if action != 4:
+            self.score += rewards.effort
         
         self.step_count += 1
 
@@ -42,13 +45,18 @@ class Environment(Game):
         new_state = self.extract_compact_state()
 
         # Punish increasing max heights:
-        self.score -= (new_state[-2] - old_state[-2])
+        # print("MAXHEIGHT CHANGE: " + str((new_state[-2] - old_state[-2])))
+        self.score += -(new_state[-2] - old_state[-2]) * 10
+
 
         # Punish the creation of holes:
-        self.score -= (new_state[-1] - old_state[-1]) * 10
+        self.score += -(new_state[-1] - old_state[-1])
     
         # Calculate reward added by taking `action`
         reward = self.score - initial_score
+        reward = self.grid.num_rows - new_state[-2]
+        if self.game_over:
+            reward -= 1000
         # print("ACTION: " + str(action))
         # print("REWARD: " + str(reward))
 
@@ -60,16 +68,23 @@ class Environment(Game):
         # Last is number of hoels
         # Second to last is max height
         # Third to last is current piece
-        new_state = np.zeros(10 + 9 + 1 + 1 + 1)
+        # [-11:-3] are the row,col of each cell occupied by the piece TODO: Better representaitons?
+        new_state = np.zeros(10 + 9 + 1 + 1 + 1 + 8)
         for i in range(self.grid.num_rows):
             for j in range(self.grid.num_cols):
-                if self.grid.grid[i][j] == 1:
+                if self.grid.grid[i][j] > 0:
                     # 0 is the top-most row
                     new_state[j] = max(20 - i, new_state[j]) # Height of each column
-                if self.grid.grid[i][j] == 1 and (i == self.grid.num_rows-1 or self.grid.grid[i+1][j] == 0):
+                if self.grid.grid[i][j] > 0 and i < self.grid.num_rows - 1 and self.grid.grid[i+1][j] == 0:
                     # Number of holes
                     new_state[-1] += 1
 
+        current = -11
+        for x in self.current_block.cells[self.current_block.rotation_state]:
+            new_state[current] = x.row
+            new_state[current+1] = x.column
+            current += 2
+            
         new_state[-2] = np.max(new_state[0:10])
 
         new_state[-3] = self.current_block.id - 1
